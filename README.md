@@ -10,7 +10,7 @@ MCP Server bridging local AI tools (opencode / Claude / Codex) to OpenClaw agent
 
 ```
 Local AI (opencode / Claude / Codex)
-    ↓ MCP stdio
+    ↓ MCP stdio (local) or HTTP (serve mode)
 openclaw-mcp-bridge (per-instance process)
     ↓ openclaw agent CLI (local) or WebSocket (remote)
 OpenClaw
@@ -118,6 +118,58 @@ Then in opencode:
 @kupuclaw 对一下需求文档
 ```
 
+### Serve Mode (v0.4.0)
+
+Runs the bridge as an HTTP server with Bearer token auth. Remote opencode clients connect to it over the network without needing direct Gateway access.
+
+```
+opencode (remote machine)
+    ↓ HTTP (Bearer token)
+openclaw-mcp-bridge serve (server)
+    ↓ WebSocket
+OpenClaw Gateway (loopback only)
+```
+
+**1. Create an auth token on the server**
+
+```bash
+npx openclaw-mcp-bridge token create my-laptop
+# → oc_550e8400-e29b-41d4-a716-446655440000
+```
+
+**2. Start the serve mode**
+
+```bash
+OPENCLAW_GATEWAY_HOST=ws://127.0.0.1:18789 OPENCLAW_GATEWAY_TOKEN=your-gw-token \
+  npx openclaw-mcp-bridge serve --port 3000
+```
+
+**3. Install on the client machine**
+
+```bash
+npx openclaw-mcp-bridge install kupuclaw --host http://server:3000 --token oc_550e8400...
+```
+
+This generates a `type: "remote"` MCP config in opencode:
+
+```json
+{
+  "type": "remote",
+  "url": "http://server:3000/mcp",
+  "headers": { "Authorization": "Bearer oc_550e8400..." },
+  "oauth": false,
+  "timeout": 120000
+}
+```
+
+#### Token Management
+
+```bash
+npx openclaw-mcp-bridge token create <name>   # Create a new token
+npx openclaw-mcp-bridge token list             # List all tokens
+npx openclaw-mcp-bridge token revoke <prefix>  # Revoke by ID prefix
+```
+
 ## Install Options
 
 ```bash
@@ -128,8 +180,8 @@ npx openclaw-mcp-bridge install <name> [options]
 |---|---|
 | `<name>` | Instance name (e.g. `localclaw`, `kupuclaw`) |
 | `--bin <path>` | Path to `openclaw` binary (local mode, default: `openclaw`) |
-| `--host <url>` | Gateway WebSocket URL (remote mode) |
-| `--token <token>` | Gateway auth token (remote mode) |
+| `--host <url>` | Gateway URL (`ws://` for direct WS, `http://` for bridge serve mode) |
+| `--token <token>` | Auth token (Gateway token for `ws://`, bridge token for `http://`) |
 
 ### Multiple Instances
 
@@ -138,6 +190,7 @@ Each OpenClaw connection gets its own MCP process and `@agent`:
 ```bash
 npx openclaw-mcp-bridge install localclaw
 npx openclaw-mcp-bridge install kupuclaw --host wss://kupu-server:18789 --token xxx
+npx openclaw-mcp-bridge install kupuclaw --host http://bridge-server:3000 --token oc_xxx
 ```
 
 Result: `@localclaw` and `@kupuclaw` both available in opencode TUI, connecting to different OpenClaw instances.
@@ -171,6 +224,7 @@ Set via `environment` in MCP config (auto-configured by install):
 | `OPENCLAW_AGENTS_DIR` | `~/.openclaw/agents` | Agent definitions directory |
 | `OPENCLAW_GATEWAY_HOST` | — | Gateway WebSocket URL (remote mode) |
 | `OPENCLAW_GATEWAY_TOKEN` | — | Gateway auth token (remote mode) |
+| `OPENCLAW_SERVE_PORT` | `3000` | HTTP port for serve mode |
 
 ## Prerequisites
 
@@ -193,7 +247,7 @@ Set via `environment` in MCP config (auto-configured by install):
 
 ```
 本地 AI (opencode / Claude / Codex)
-    ↓ MCP stdio
+    ↓ MCP stdio（本地）或 HTTP（服务模式）
 openclaw-mcp-bridge（每个实例一个进程）
     ↓ openclaw CLI（本地）或 WebSocket（远程）
 OpenClaw
@@ -301,6 +355,58 @@ npx openclaw-mcp-bridge install kupuclaw --host wss://服务器地址:18789 --to
 @kupuclaw 对一下需求文档
 ```
 
+### 服务模式 (v0.4.0)
+
+将桥接器作为 HTTP 服务运行，使用 Bearer token 认证。远程 opencode 客户端通过网络连接，无需直接访问 Gateway。
+
+```
+opencode（远程机器）
+    ↓ HTTP（Bearer token）
+openclaw-mcp-bridge serve（服务器）
+    ↓ WebSocket
+OpenClaw Gateway（仅本机监听）
+```
+
+**1. 在服务器上创建认证 token**
+
+```bash
+npx openclaw-mcp-bridge token create my-laptop
+# → oc_550e8400-e29b-41d4-a716-446655440000
+```
+
+**2. 启动服务模式**
+
+```bash
+OPENCLAW_GATEWAY_HOST=ws://127.0.0.1:18789 OPENCLAW_GATEWAY_TOKEN=你的网关密钥 \
+  npx openclaw-mcp-bridge serve --port 3000
+```
+
+**3. 在客户端机器上安装**
+
+```bash
+npx openclaw-mcp-bridge install kupuclaw --host http://服务器:3000 --token oc_550e8400...
+```
+
+自动生成 `type: "remote"` 的 MCP 配置：
+
+```json
+{
+  "type": "remote",
+  "url": "http://服务器:3000/mcp",
+  "headers": { "Authorization": "Bearer oc_550e8400..." },
+  "oauth": false,
+  "timeout": 120000
+}
+```
+
+#### Token 管理
+
+```bash
+npx openclaw-mcp-bridge token create <名称>     # 创建新 token
+npx openclaw-mcp-bridge token list               # 列出所有 token
+npx openclaw-mcp-bridge token revoke <前缀>      # 按 ID 前缀撤销
+```
+
 ## 安装选项
 
 ```bash
@@ -311,8 +417,8 @@ npx openclaw-mcp-bridge install <名称> [选项]
 |---|---|
 | `<名称>` | 实例名（如 `localclaw`, `kupuclaw`） |
 | `--bin <路径>` | openclaw 二进制文件路径（本地模式，默认: `openclaw`） |
-| `--host <地址>` | Gateway WebSocket 地址（远程模式） |
-| `--token <密钥>` | Gateway 认证密钥（远程模式） |
+| `--host <地址>` | Gateway 地址（`ws://` 直连, `http://` 桥接服务模式） |
+| `--token <密钥>` | 认证密钥（`ws://` 用 Gateway 密钥, `http://` 用桥接 token） |
 
 ### 多实例
 
@@ -321,6 +427,7 @@ npx openclaw-mcp-bridge install <名称> [选项]
 ```bash
 npx openclaw-mcp-bridge install localclaw
 npx openclaw-mcp-bridge install kupuclaw --host wss://kupu-server:18789 --token xxx
+npx openclaw-mcp-bridge install kupuclaw --host http://桥接服务器:3000 --token oc_xxx
 ```
 
 结果：opencode 中同时可用 `@localclaw` 和 `@kupuclaw`，分别连接不同的 OpenClaw 实例。
@@ -354,6 +461,7 @@ npx openclaw-mcp-bridge install kupuclaw --host wss://kupu-server:18789 --token 
 | `OPENCLAW_AGENTS_DIR` | `~/.openclaw/agents` | Agent 定义目录 |
 | `OPENCLAW_GATEWAY_HOST` | — | Gateway WebSocket 地址（远程模式） |
 | `OPENCLAW_GATEWAY_TOKEN` | — | Gateway 认证密钥（远程模式） |
+| `OPENCLAW_SERVE_PORT` | `3000` | 服务模式 HTTP 端口 |
 
 ## 前置要求
 

@@ -25,12 +25,13 @@ function parseArgs(argv: string[]): InstallOptions {
     console.error("")
     console.error("Options:")
     console.error("  --bin <path>      Path to openclaw binary (local mode, default: openclaw)")
-    console.error("  --host <url>      Gateway WebSocket URL (remote mode, e.g. ws://server:18789)")
-    console.error("  --token <token>   Gateway auth token (remote mode)")
+    console.error("  --host <url>      Gateway URL (ws:// for direct, http:// for bridge serve mode)")
+    console.error("  --token <token>   Auth token (Gateway token for ws://, bridge token for http://)")
     console.error("")
     console.error("Examples:")
     console.error("  npx openclaw-mcp-bridge install localclaw")
     console.error("  npx openclaw-mcp-bridge install kupuclaw --host ws://server:18789 --token abc123")
+    console.error("  npx openclaw-mcp-bridge install kupuclaw --host http://server:3000 --token oc_xxx")
     process.exit(1)
   }
 
@@ -76,7 +77,28 @@ function getProjectRoot(): string {
   return resolve(dirname(decodeURIComponent(raw)), "..")
 }
 
+function isHttpHost(host: string): boolean {
+  return host.startsWith("http://") || host.startsWith("https://")
+}
+
 function buildMcpEntry(options: InstallOptions, projectRoot: string) {
+  // HTTP host → remote MCP config (for bridge serve mode)
+  if (options.host && isHttpHost(options.host)) {
+    const url = options.host.endsWith("/mcp") ? options.host : `${options.host}/mcp`
+    const entry: Record<string, unknown> = {
+      type: "remote",
+      url,
+      enabled: true,
+      timeout: 120000,
+      oauth: false,
+    }
+    if (options.token) {
+      entry.headers = { Authorization: `Bearer ${options.token}` }
+    }
+    return entry
+  }
+
+  // WS host or local mode → local MCP config (spawn subprocess)
   const env: Record<string, string> = {
     OPENCLAW_INSTANCE_NAME: options.name,
   }
@@ -138,7 +160,8 @@ export async function install(argv: string[]): Promise<void> {
 
   await writeOpencodeConfig(config)
 
-  const mode = options.host ? "remote" : "local"
+  const isHttp = options.host && isHttpHost(options.host)
+  const mode = isHttp ? "serve" : options.host ? "remote" : "local"
 
   console.log("")
   console.log(`✓ OpenClaw MCP bridge "${options.name}" installed! (${mode} mode)`)

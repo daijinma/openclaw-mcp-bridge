@@ -6,6 +6,12 @@ const subcommand = process.argv[2]
 if (subcommand === "install") {
   const { install } = await import("./install.js")
   await install(process.argv.slice(2))
+} else if (subcommand === "token") {
+  const { tokenCommand } = await import("./token.js")
+  await tokenCommand(process.argv.slice(3))
+} else if (subcommand === "serve") {
+  const { serve } = await import("./serve.js")
+  await serve(process.argv.slice(3))
 } else {
   const { FastMCP } = await import("fastmcp")
   const { loadConfig } = await import("./config.js")
@@ -27,7 +33,7 @@ if (subcommand === "install") {
 
   const server = new FastMCP({
     name: instanceName,
-    version: "0.3.0",
+    version: "0.4.0",
     instructions:
       `This MCP server connects you to OpenClaw agents (${mode} mode) for requirement discussions, ` +
       `technical consulting, and collaborative work. ` +

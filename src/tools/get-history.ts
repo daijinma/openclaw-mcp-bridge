@@ -1,8 +1,8 @@
 import { type FastMCP, UserError } from "fastmcp"
 import { z } from "zod"
-import type { GatewayClient } from "../gateway-client.js"
+import type { IGatewayClient } from "../gateway-client.js"
 
-export function registerGetHistory(server: FastMCP, _gateway: GatewayClient) {
+export function registerGetHistory(server: FastMCP, _gateway: IGatewayClient) {
   server.addTool({
     name: "get_conversation_history",
     description:

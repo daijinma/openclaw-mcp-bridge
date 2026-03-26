@@ -1,8 +1,8 @@
 import { type FastMCP, UserError } from "fastmcp"
 import { z } from "zod"
-import type { GatewayClient } from "../gateway-client.js"
+import type { IGatewayClient } from "../gateway-client.js"
 
-export function registerListAgents(server: FastMCP, gateway: GatewayClient) {
+export function registerListAgents(server: FastMCP, gateway: IGatewayClient) {
   server.addTool({
     name: "list_agents",
     description:

@@ -10,6 +10,7 @@ export interface AgentResponse {
   runId: string
   status: string
   summary: string
+  sessionId: string
   result: {
     payloads: Array<{ text: string | null; mediaUrl: string | null }>
     meta: {
@@ -26,12 +27,35 @@ export interface AgentResponse {
   }
 }
 
-export class GatewayClient {
-  private config: BridgeConfig
+export interface IGatewayClient {
+  listAgents(): Promise<AgentInfo[]>
+  sendMessage(
+    message: string,
+    agentId?: string,
+    sessionId?: string,
+  ): Promise<AgentResponse>
+}
 
-  constructor(config: BridgeConfig) {
-    this.config = config
+export function extractText(response: AgentResponse): string {
+  if (response.result?.payloads) {
+    const texts = response.result.payloads
+      .filter((p) => p.text)
+      .map((p) => p.text!)
+    if (texts.length > 0) return texts.join("\n\n")
   }
+  return response.summary || "(Agent returned no text response)"
+}
+
+export function extractSessionId(response: AgentResponse): string {
+  return (
+    response.sessionId ||
+    response.result?.meta?.agentMeta?.sessionId ||
+    ""
+  )
+}
+
+export class CliGatewayClient implements IGatewayClient {
+  constructor(private config: BridgeConfig) {}
 
   async listAgents(): Promise<AgentInfo[]> {
     try {
@@ -87,9 +111,6 @@ export class GatewayClient {
     })
   }
 
-  // CLI mixes plugin-loading logs into stdout before the JSON response.
-  // This parser locates the JSON by scanning for `\n{`, with a brace-depth
-  // fallback when the simple heuristic fails (e.g. logs contain `{`).
   private parseResponse(stdout: string): AgentResponse {
     const jsonStart = stdout.indexOf("\n{")
     const jsonStr = jsonStart >= 0 ? stdout.slice(jsonStart + 1) : stdout.trim()
@@ -113,16 +134,5 @@ export class GatewayClient {
       }
       return JSON.parse(stdout.slice(start, lastBrace + 1)) as AgentResponse
     }
-  }
-
-  static extractText(response: AgentResponse): string {
-    const texts = response.result.payloads
-      .filter((p) => p.text)
-      .map((p) => p.text!)
-    return texts.join("\n\n") || "(Agent returned no text response)"
-  }
-
-  static extractSessionId(response: AgentResponse): string {
-    return response.result.meta.agentMeta.sessionId
   }
 }

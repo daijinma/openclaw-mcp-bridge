@@ -1,8 +1,8 @@
 import { type FastMCP, UserError } from "fastmcp"
 import { z } from "zod"
-import { GatewayClient } from "../gateway-client.js"
+import { type IGatewayClient, extractText, extractSessionId } from "../gateway-client.js"
 
-export function registerAskAgent(server: FastMCP, gateway: GatewayClient) {
+export function registerAskAgent(server: FastMCP, gateway: IGatewayClient) {
   server.addTool({
     name: "ask_agent",
     description:
@@ -43,18 +43,16 @@ export function registerAskAgent(server: FastMCP, gateway: GatewayClient) {
           args.sessionId,
         )
 
-        const text = GatewayClient.extractText(response)
-        const sessionId = GatewayClient.extractSessionId(response)
-        const duration = response.result.meta.durationMs
+        const text = extractText(response)
+        const sid = extractSessionId(response)
+        const duration = response.result?.meta?.durationMs ?? 0
+        const model = response.result?.meta?.agentMeta?.model ?? "unknown"
 
-        return [
-          text,
-          "",
-          "---",
-          `sessionId: ${sessionId}`,
-          `duration: ${(duration / 1000).toFixed(1)}s`,
-          `model: ${response.result.meta.agentMeta.model}`,
-        ].join("\n")
+        const lines = [text, "", "---", `sessionId: ${sid}`]
+        if (duration > 0) lines.push(`duration: ${(duration / 1000).toFixed(1)}s`)
+        lines.push(`model: ${model}`)
+
+        return lines.join("\n")
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
         if (message.includes("timeout") || message.includes("TIMEOUT")) {

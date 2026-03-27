@@ -237,6 +237,85 @@ Set via `environment` in MCP config (auto-configured by install):
 - `get_conversation_history` is stubbed in CLI mode — use remote mode for full history support
 - MCP SDK pinned to 1.20.2 (later versions have breaking change with FastMCP)
 
+## For AI Assistants
+
+> This section is written for LLMs (Claude, GPT, Codex, etc.) who are asked to install openclaw-mcp-bridge for a user. Follow these steps exactly.
+
+### Scenario 1: Local Mode (openclaw CLI installed on this machine)
+
+```bash
+# 1. Clone and install
+git clone git@github.com:daijinma/openclaw-mcp-bridge.git ~/openclaw-mcp-bridge
+cd ~/openclaw-mcp-bridge && npm install
+
+# 2. Register in opencode (creates MCP server + @agent entry)
+npx openclaw-mcp-bridge install localclaw
+```
+
+Done. User can now type `@localclaw 你好` in opencode.
+
+### Scenario 2: Remote Mode (connect to a remote OpenClaw Gateway via WebSocket)
+
+User must provide: Gateway host (ws:// or wss://), Gateway auth token.
+
+```bash
+# 1. Clone and install
+git clone git@github.com:daijinma/openclaw-mcp-bridge.git ~/openclaw-mcp-bridge
+cd ~/openclaw-mcp-bridge && npm install
+
+# 2. Register with remote Gateway
+npx openclaw-mcp-bridge install kupuclaw --host wss://<gateway-host>:18789 --token <gateway-token>
+```
+
+### Scenario 3: Serve Mode (connect to a remote bridge HTTP server)
+
+User must provide: bridge server URL (http:// or https://), bridge auth token (oc_xxx format).
+
+```bash
+# 1. Clone and install
+git clone git@github.com:daijinma/openclaw-mcp-bridge.git ~/openclaw-mcp-bridge
+cd ~/openclaw-mcp-bridge && npm install
+
+# 2. Register with remote bridge server
+npx openclaw-mcp-bridge install kupuclaw --host http://<bridge-server>:3000 --token <bridge-token>
+```
+
+### Scenario 4: Setting up a bridge server (serve mode — server side)
+
+This is for the machine that runs OpenClaw Gateway and wants to expose it to remote clients.
+
+```bash
+# 1. Clone and install
+git clone git@github.com:daijinma/openclaw-mcp-bridge.git ~/openclaw-mcp-bridge
+cd ~/openclaw-mcp-bridge && npm install
+
+# 2. Create auth tokens for each client
+cd ~/openclaw-mcp-bridge
+npx openclaw-mcp-bridge token create alice-laptop
+npx openclaw-mcp-bridge token create bob-desktop
+# Save the printed oc_xxx token IDs — give them to each client
+
+# 3. Start the HTTP server (Gateway must be running on localhost)
+OPENCLAW_GATEWAY_HOST=ws://127.0.0.1:18789 OPENCLAW_GATEWAY_TOKEN=<gateway-token> \
+  npx openclaw-mcp-bridge serve --port 3000
+```
+
+### What `install` does
+
+It writes to `~/.config/opencode/opencode.json`:
+
+1. **MCP server entry** (`mcp.openclaw-<name>`) — either `type: "local"` (spawns process) or `type: "remote"` (HTTP connection)
+2. **Agent entry** (`agent.<name>`) — a subagent accessible via `@<name>` in opencode that auto-forwards messages to OpenClaw
+
+### Key rules
+
+- The `<name>` argument to `install` is user-chosen (e.g. `localclaw`, `kupuclaw`, `work-claw`)
+- Multiple instances can coexist — each gets its own MCP process and `@agent`
+- `--host http://...` → generates `type: "remote"` config (serve mode)
+- `--host ws://...` or `--host wss://...` → generates `type: "local"` config with WS env vars
+- No `--host` → generates `type: "local"` config using CLI subprocess
+- Requires Node.js 22+
+
 ---
 
 <a id="中文"></a>
@@ -473,3 +552,82 @@ npx openclaw-mcp-bridge install kupuclaw --host http://桥接服务器:3000 --to
 
 - `get_conversation_history` 在 CLI 模式下暂未实现 — 远程模式支持完整历史
 - MCP SDK 固定为 1.20.2（更高版本与 FastMCP 不兼容）
+
+## 给 AI 助手的安装指南
+
+> 本节写给 LLM（Claude、GPT、Codex 等），当用户要求安装 openclaw-mcp-bridge 时，按以下步骤执行。
+
+### 场景 1：本地模式（本机已安装 openclaw CLI）
+
+```bash
+# 1. 克隆并安装
+git clone git@github.com:daijinma/openclaw-mcp-bridge.git ~/openclaw-mcp-bridge
+cd ~/openclaw-mcp-bridge && npm install
+
+# 2. 注册到 opencode（创建 MCP 服务 + @agent）
+npx openclaw-mcp-bridge install localclaw
+```
+
+完成。用户在 opencode 中输入 `@localclaw 你好` 即可使用。
+
+### 场景 2：远程模式（通过 WebSocket 连接远程 OpenClaw Gateway）
+
+用户需提供：Gateway 地址（ws:// 或 wss://）、Gateway 认证 token。
+
+```bash
+# 1. 克隆并安装
+git clone git@github.com:daijinma/openclaw-mcp-bridge.git ~/openclaw-mcp-bridge
+cd ~/openclaw-mcp-bridge && npm install
+
+# 2. 注册远程 Gateway
+npx openclaw-mcp-bridge install kupuclaw --host wss://<gateway地址>:18789 --token <gateway密钥>
+```
+
+### 场景 3：服务模式（连接远程桥接 HTTP 服务器）
+
+用户需提供：桥接服务器地址（http:// 或 https://）、桥接认证 token（oc_xxx 格式）。
+
+```bash
+# 1. 克隆并安装
+git clone git@github.com:daijinma/openclaw-mcp-bridge.git ~/openclaw-mcp-bridge
+cd ~/openclaw-mcp-bridge && npm install
+
+# 2. 注册远程桥接服务器
+npx openclaw-mcp-bridge install kupuclaw --host http://<桥接服务器>:3000 --token <桥接token>
+```
+
+### 场景 4：搭建桥接服务器（服务模式 — 服务端）
+
+适用于运行 OpenClaw Gateway 的机器，将其安全地暴露给远程客户端。
+
+```bash
+# 1. 克隆并安装
+git clone git@github.com:daijinma/openclaw-mcp-bridge.git ~/openclaw-mcp-bridge
+cd ~/openclaw-mcp-bridge && npm install
+
+# 2. 为每个客户端创建认证 token
+cd ~/openclaw-mcp-bridge
+npx openclaw-mcp-bridge token create alice-laptop
+npx openclaw-mcp-bridge token create bob-desktop
+# 保存打印出的 oc_xxx token，分发给对应客户端
+
+# 3. 启动 HTTP 服务（Gateway 需在本机运行）
+OPENCLAW_GATEWAY_HOST=ws://127.0.0.1:18789 OPENCLAW_GATEWAY_TOKEN=<gateway密钥> \
+  npx openclaw-mcp-bridge serve --port 3000
+```
+
+### install 命令做了什么
+
+写入 `~/.config/opencode/opencode.json`：
+
+1. **MCP 服务条目** (`mcp.openclaw-<名称>`) — `type: "local"`（启动子进程）或 `type: "remote"`（HTTP 连接）
+2. **Agent 条目** (`agent.<名称>`) — 在 opencode 中通过 `@<名称>` 调用的子代理，自动转发消息到 OpenClaw
+
+### 关键规则
+
+- `<名称>` 参数由用户自定义（如 `localclaw`、`kupuclaw`、`work-claw`）
+- 支持多实例共存 — 每个实例有独立的 MCP 进程和 `@agent`
+- `--host http://...` → 生成 `type: "remote"` 配置（服务模式）
+- `--host ws://...` 或 `--host wss://...` → 生成 `type: "local"` 配置，带 WS 环境变量
+- 不传 `--host` → 生成 `type: "local"` 配置，使用 CLI 子进程
+- 需要 Node.js 22+

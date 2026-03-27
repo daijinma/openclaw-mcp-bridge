@@ -200,8 +200,8 @@ Result: `@localclaw` and `@kupuclaw` both available in opencode TUI, connecting 
 | Tool | Description |
 |---|---|
 | `list_agents` | List available OpenClaw agents |
-| `create_session` | Pre-generate a session ID |
-| `ask_agent` | Send message, get response (multi-turn via sessionId) |
+| `create_session` | Pre-generate a named session ID |
+| `ask_agent` | Send message, get response. Supports `sessionId` for follow-ups, `newTopic=true` to start a new topic (like `/new` in OpenClaw) |
 | `get_conversation_history` | Retrieve past messages (remote mode only) |
 
 ## How It Works
@@ -516,8 +516,8 @@ npx openclaw-mcp-bridge install kupuclaw --host http://桥接服务器:3000 --to
 | 工具 | 说明 |
 |---|---|
 | `list_agents` | 列出可用的 OpenClaw Agent |
-| `create_session` | 预生成会话 ID |
-| `ask_agent` | 发送消息并获取回复（通过 sessionId 支持多轮对话） |
+| `create_session` | 预生成命名会话 ID |
+| `ask_agent` | 发送消息并获取回复。支持 `sessionId` 续接对话，`newTopic=true` 开启新话题（等同 OpenClaw 的 `/new`） |
 | `get_conversation_history` | 获取历史消息（仅远程模式） |
 
 ## 工作原理

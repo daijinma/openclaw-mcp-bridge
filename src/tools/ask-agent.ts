@@ -2,13 +2,26 @@ import { type FastMCP, UserError } from "fastmcp"
 import { z } from "zod"
 import { type IGatewayClient, extractText, extractSessionId } from "../gateway-client.js"
 
+/** Generate a timestamped session key for a new topic: agent:<agentId>:<YYYYMMDD-HHmm> */
+function makeTopicSessionKey(agentId: string): string {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, "0")
+  const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`
+  return `agent:${agentId}:${stamp}`
+}
+
 export function registerAskAgent(server: FastMCP, gateway: IGatewayClient) {
   server.addTool({
     name: "ask_agent",
     description:
-      "Send a message to an OpenClaw agent and get the complete response. " +
-      "Supports multi-turn conversations — pass the same sessionId for follow-ups. " +
-      "First call can omit sessionId; the response includes one for continuation.",
+      "Send a message to an OpenClaw agent and get the complete response.\n" +
+      "Session behavior:\n" +
+      "  - Default (no sessionId, no newTopic): continues the default 'main' topic.\n" +
+      "  - newTopic=true: starts a NEW topic (like /new in OpenClaw). " +
+      "Returns a unique sessionId — save it for follow-ups on that topic.\n" +
+      "  - sessionId=<id>: resumes a specific previous topic.\n" +
+      "  - newTopic + sessionId together: newTopic is ignored, sessionId takes precedence.\n" +
+      "The response always includes the sessionId for continuation.",
     parameters: z.object({
       message: z
         .string()
@@ -23,8 +36,15 @@ export function registerAskAgent(server: FastMCP, gateway: IGatewayClient) {
         .string()
         .optional()
         .describe(
-          "Session ID for multi-turn conversation. " +
+          "Session ID to resume a specific topic. " +
           "Omit on first message; use the returned sessionId for follow-ups."
+        ),
+      newTopic: z
+        .boolean()
+        .optional()
+        .describe(
+          "Start a new conversation topic (equivalent to /new in OpenClaw). " +
+          "Generates a unique session key. Ignored if sessionId is provided."
         ),
     }),
     annotations: {
@@ -32,15 +52,24 @@ export function registerAskAgent(server: FastMCP, gateway: IGatewayClient) {
     },
     execute: async (args, { log }) => {
       try {
+        const agentId = args.agentId ?? "main"
+
+        // Resolve session: explicit sessionId > newTopic > default
+        let resolvedSessionId = args.sessionId
+        if (!resolvedSessionId && args.newTopic) {
+          resolvedSessionId = makeTopicSessionKey(agentId)
+        }
+
         log.info("Sending message to OpenClaw agent", {
-          agentId: args.agentId ?? "main",
-          hasSession: !!args.sessionId,
+          agentId,
+          hasSession: !!resolvedSessionId,
+          newTopic: !!args.newTopic,
         })
 
         const response = await gateway.sendMessage(
           args.message,
-          args.agentId ?? "main",
-          args.sessionId,
+          agentId,
+          resolvedSessionId,
         )
 
         const text = extractText(response)

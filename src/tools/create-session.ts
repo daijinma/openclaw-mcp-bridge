@@ -6,9 +6,11 @@ export function registerCreateSession(server: FastMCP, _gateway: IGatewayClient)
   server.addTool({
     name: "create_session",
     description:
-      "Create a new conversation session ID for multi-turn conversations. " +
-      "Returns a sessionId (in agent:<id>:<name> format) for use with ask_agent. " +
-      "The session maintains context across multiple ask_agent calls.",
+      "Create a named conversation session ID for use with ask_agent. " +
+      "Returns a sessionId (in agent:<id>:<name> format). " +
+      "Tip: for quick topic switches, use ask_agent's newTopic=true instead — " +
+      "it auto-generates a timestamped session. Use this tool only when you " +
+      "need a specific descriptive session name.",
     parameters: z.object({
       agentId: z
         .string()
